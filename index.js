@@ -1,3 +1,4 @@
+const postcss = require("postcss");
 const pxRegex = require("./lib/pixel-unit-regex");
 const filterPropList = require("./lib/filter-prop-list");
 const type = require("./lib/type");
@@ -21,6 +22,62 @@ const legacyOptions = {
   media_query: "mediaQuery",
   propWhiteList: "propList"
 };
+
+module.exports = postcss.plugin("postcss-pxtoem", options => {
+  convertLegacyOptions(options);
+  const opts = Object.assign({}, defaults, options);
+  const satisfyPropList = createPropListMatcher(opts.propList);
+
+  return css => {
+    const exclude = opts.exclude;
+    const filePath = css.source.input.file;
+    if (
+      exclude &&
+      ((type.isFunction(exclude) && exclude(filePath)) ||
+        (type.isString(exclude) && filePath.indexOf(exclude) !== -1) ||
+        filePath.match(exclude) !== null)
+    ) {
+      return;
+    }
+
+    const rootValue =
+      typeof opts.rootValue === "function"
+        ? opts.rootValue(css.source.input)
+        : opts.rootValue;
+    const pxReplace = createPxReplace(
+      rootValue,
+      opts.unitPrecision,
+      opts.minPixelValue
+    );
+
+    css.walkDecls((decl, i) => {
+      if (
+        decl.value.indexOf("px") === -1 ||
+        !satisfyPropList(decl.prop) ||
+        blacklistedSelector(opts.selectorBlackList, decl.parent.selector)
+      )
+        return;
+
+      const value = decl.value.replace(pxRegex, pxReplace);
+
+      // if em unit already exists, do not add or replace
+      if (declarationExists(decl.parent, decl.prop, value)) return;
+
+      if (opts.replace) {
+        decl.value = value;
+      } else {
+        decl.parent.insertAfter(i, decl.clone({ value: value }));
+      }
+    });
+
+    if (opts.mediaQuery) {
+      css.walkAtRules("media", rule => {
+        if (rule.params.indexOf("px") === -1) return;
+        rule.params = rule.params.replace(pxRegex, pxReplace);
+      });
+    }
+  };
+});
 
 function convertLegacyOptions(options) {
   if (typeof options !== "object") return;
@@ -115,68 +172,3 @@ function createPropListMatcher(propList) {
     );
   };
 }
-
-module.exports = (options = {}) => {
-  convertLegacyOptions(options);
-  const opts = Object.assign({}, defaults, options);
-  const satisfyPropList = createPropListMatcher(opts.propList);
-  const exclude = opts.exclude;
-  let isExcludeFile = false;
-  let pxReplace;
-  return {
-    postcssPlugin: "postcss-pxtoem",
-    Once(css) {
-      const filePath = css.source.input.file;
-      if (
-        exclude &&
-        ((type.isFunction(exclude) && exclude(filePath)) ||
-          (type.isString(exclude) && filePath.indexOf(exclude) !== -1) ||
-          filePath.match(exclude) !== null)
-      ) {
-        isExcludeFile = true;
-      } else {
-        isExcludeFile = false;
-      }
-
-      const rootValue =
-        typeof opts.rootValue === "function"
-          ? opts.rootValue(css.source.input)
-          : opts.rootValue;
-      pxReplace = createPxReplace(
-        rootValue,
-        opts.unitPrecision,
-        opts.minPixelValue
-      );
-    },
-    Declaration(decl) {
-      if (isExcludeFile) return;
-
-      if (
-        decl.value.indexOf("px") === -1 ||
-        !satisfyPropList(decl.prop) ||
-        blacklistedSelector(opts.selectorBlackList, decl.parent.selector)
-      )
-        return;
-
-      const value = decl.value.replace(pxRegex, pxReplace);
-
-      // if rem unit already exists, do not add or replace
-      if (declarationExists(decl.parent, decl.prop, value)) return;
-
-      if (opts.replace) {
-        decl.value = value;
-      } else {
-        decl.cloneAfter({ value: value });
-      }
-    },
-    AtRule(atRule) {
-      if (isExcludeFile) return;
-
-      if (opts.mediaQuery && atRule.name === "media") {
-        if (atRule.params.indexOf("px") === -1) return;
-        atRule.params = atRule.params.replace(pxRegex, pxReplace);
-      }
-    }
-  };
-};
-module.exports.postcss = true;
