@@ -1,5 +1,5 @@
 {
-  "name": "postcss-px2em",
+  "name": "postcss-plugin-pxtoem",
   "description": "A CSS post-processor that converts px to em.",
   "version": "1.0.0",
   "author": "cuth",

@@ -3,7 +3,7 @@
 ## Install
 
 ```shell
-$ npm install postcss-px2em --save-dev
+$ npm install postcss-plugin-pxtoem --save-dev
 ```
 
 ### Input/Output

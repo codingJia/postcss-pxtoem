@@ -4,7 +4,7 @@ const filterPropList = require("./lib/filter-prop-list");
 const type = require("./lib/type");
 
 const defaults = {
-  rootValue: 16,
+  rootValue: 100,
   unitPrecision: 5,
   selectorBlackList: [],
   propList: ["font", "font-size", "line-height", "letter-spacing"],
@@ -23,7 +23,7 @@ const legacyOptions = {
   propWhiteList: "propList"
 };
 
-module.exports = postcss.plugin("postcss-px2em", options => {
+module.exports = postcss.plugin("postcss-plugin-pxtoem", options => {
   convertLegacyOptions(options);
   const opts = Object.assign({}, defaults, options);
   const satisfyPropList = createPropListMatcher(opts.propList);
