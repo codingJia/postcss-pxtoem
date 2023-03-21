@@ -23,7 +23,7 @@ const legacyOptions = {
   propWhiteList: "propList"
 };
 
-module.exports = postcss.plugin("postcss-pxtoem", options => {
+module.exports = postcss.plugin("postcss-px2em", options => {
   convertLegacyOptions(options);
   const opts = Object.assign({}, defaults, options);
   const satisfyPropList = createPropListMatcher(opts.propList);
